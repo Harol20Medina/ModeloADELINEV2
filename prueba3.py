@@ -1,166 +1,118 @@
-import numpy as np
-import matplotlib.pyplot as plt  # Importar la librería para gráficos
+import numpy as np  # Importamos numpy para manejar cálculos matemáticos y operaciones con arrays
+import pandas as pd  # Importamos pandas para estructurar y visualizar los datos en forma de tablas
+
+# Parámetros
+alpha = 0.3  # Tasa de aprendizaje, usada para ajustar los pesos en cada iteración
+tolerancia = 1e-5  # Umbral de tolerancia, para verificar cuando el ajuste en los pesos es suficientemente pequeño y detener el entrenamiento
+# Matriz de entrada (10 patrones binarios con 4 columnas, representando el conjunto de datos de entrada)
+X = np.array([[0, 0, 0, 1],  # Cada fila representa un patrón binario, en este caso, con 4 características
+              [0, 1, 0, 0],
+              [0, 1, 1, 1],
+              [1, 0, 0, 0],
+              [1, 0, 1, 1],
+              [1, 1, 0, 0],
+              [1, 1, 1, 1],
+              [0, 0, 0, 0],
+              [1, 0, 0, 1],
+              [1, 0, 1, 0]])
 
 
-# Definir función de activación (lineal en este caso)
-def activation_function(x):
-    return x
+# Función para predecir la salida, multiplica el patrón binario con los pesos actuales
+def calcular_salida(X, pesos):
+    return np.dot(X, pesos)  # Producto punto entre el vector de entrada y el vector de pesos
 
 
-# Función para convertir patrones binarios a decimales
-def binary_to_decimal(X):
-    """
-    Convierte una lista de patrones binarios en sus valores decimales correspondientes.
-    - X: Matriz de patrones binarios (cada fila es un patrón binario).
-    """
-    return np.array([int("".join(str(bit) for bit in pattern), 2) for pattern in X])
+# Función que convierte un patrón binario a decimal (el valor decimal será la salida deseada)
+def binario_a_decimal(binario):
+    # Convertimos el patrón binario en decimal aplicando las potencias de 2, por ejemplo [1, 0, 1, 1] -> 11 en decimal
+    return binario[0] * 2 ** 3 + binario[1] * 2 ** 2 + binario[2] * 2 ** 1 + binario[3] * 2 ** 0
 
 
-# Clase que implementa el modelo ADELINE
-class Adeline:
-    def __init__(self, input_size, learning_rate=0.3):
-        """
-        Constructor que inicializa el modelo ADELINE.
-        - input_size: número de entradas (en este caso 3, porque hay 3 características binarias).
-        - learning_rate: tasa de aprendizaje, controla cuánto cambian los pesos en cada iteración.
-        """
-        # Inicializamos los pesos aleatoriamente para 10 patrones binarios y 3 entradas (input_size).
-        self.weights_list = np.random.rand(10,
-                                           input_size)  # Se generan 10 conjuntos de pesos diferentes para cada patrón binario.
+# Inicialización de los pesos, estos serán ajustados durante el proceso de aprendizaje
+# Comenzamos con un conjunto de valores aleatorios o predefinidos
+pesos = np.array([0.631, 0.840, 0.394, 0.576])
 
-        # Asignamos la tasa de aprendizaje.
-        self.learning_rate = learning_rate  # La tasa de aprendizaje se usará en la regla delta para ajustar los pesos.
+# Estructura de datos donde guardaremos los resultados de cada iteración para mostrarlo como tabla
+data = {
+    "Patrón Binario": [],  # Columna para almacenar los patrones de entrada (X)
+    "S.D. (z(k))": [],  # Columna para almacenar la salida decimal (convertida del patrón binario)
+    "Peso Antes (w1, w2, w3, w4)": [],  # Pesos antes de aplicar el ajuste
+    "Salida (S(k))": [],  # Salida calculada S(k) antes del ajuste
+    "Error (d - y)": [],  # Diferencia entre la salida deseada (d) y la salida calculada (y)
+    "Ajuste de Pesos (Δw1, Δw2, Δw3, Δw4)": [],  # Ajuste calculado para los pesos en esa iteración
+    "Pesos Después (w1, w2, w3, w4)": []  # Pesos después del ajuste
+}
 
-    # Método para predecir la salida del modelo, dadas las entradas (X) y los pesos (weights).
-    def predict(self, X, weights):
-        """
-        Este método calcula el producto punto entre las entradas X y los pesos.
-        - X: patrón binario (entrada).
-        - weights: pesos asociados a ese patrón.
-        """
-        return activation_function(np.dot(X, weights))  # np.dot realiza el producto punto entre X y los pesos.
+convergencia_alcanzada = False  # Bandera que indica si hemos alcanzado la convergencia (ajuste total cercano a 0)
 
-    # Método para entrenar el modelo
-    def train(self, X, y, epochs=1):
-        """
-        Entrena el modelo ADELINE ajustando los pesos para minimizar el error.
-        - X: entradas (patrones binarios).
-        - y: salidas deseadas (valores decimales).
-        - epochs: número de veces que se repite el proceso de entrenamiento (iteraciones). Aquí se hace una sola iteración (epochs=1).
-        """
+# Bucle principal de aprendizaje, el proceso continuará hasta que el ajuste total sea menor que la tolerancia
+while not convergencia_alcanzada:
+    ajuste_total = 0  # Variable para almacenar la magnitud total del ajuste de pesos en esta iteración
+    errores = []  # Almacenamos los errores en cada ciclo de entrenamiento
 
-        # Almacenamos las salidas predichas para graficar
-        outputs = []
+    for i in range(len(X)):  # Recorremos cada patrón de entrada (X)
+        # Guardamos los pesos antes de cualquier ajuste
+        peso_antes = pesos.copy()
 
-        # Imprimimos la cabecera de la tabla que mostrará el patrón binario y su salida decimal correspondiente.
-        print(f"{'Iteración':^10} | {'Patrón Binario':^18} | {'Salida Decimal':^15}")
-        print("-" * 50)
+        # Calculamos la salida S(k), producto punto entre el patrón binario y los pesos
+        salida = calcular_salida(X[i], peso_antes)
 
-        # Bucle para imprimir cada patrón binario con su salida correspondiente.
-        for i in range(len(X)):
-            print(f"{i + 1:^10} | {str(X[i]):^18} | {y[i]:^15}")
+        # Convertimos el patrón binario a decimal para usarlo como la salida deseada d(k)
+        sd = binario_a_decimal(X[i])
 
-        # Imprimimos la cabecera para mostrar los pesos antes del ajuste.
-        print("\nPesos Antes del Ajuste (diferentes para cada iteración)")
-        print(f"{'W1':^10} | {'W2':^10} | {'W3':^10}")
-        print("-" * 30)
+        # Calculamos el error, que es la diferencia entre la salida deseada y la salida calculada
+        error = sd - salida
 
-        # Bucle para mostrar los pesos iniciales antes de cada ajuste, para cada patrón.
-        for i in range(len(X)):  # Itera sobre los 10 patrones binarios.
+        # Calculamos el ajuste de pesos basado en el error y el patrón de entrada (Regla delta: α(d - y)X)
+        delta_pesos = alpha * error * X[i]
+
+        # Actualizamos los pesos sumando el ajuste calculado
+        pesos += delta_pesos
+
+        # Acumulamos el ajuste total de los pesos para verificar convergencia
+        ajuste_total += np.sum(np.abs(delta_pesos))
+
+        # Guardamos los resultados en las respectivas columnas de la tabla
+        data["Patrón Binario"].append(list(map(int, X[i])))  # Guardamos el patrón binario como enteros
+        data["S.D. (z(k))"].append(int(sd))  # Guardamos la salida decimal (convertida del binario)
+        data["Peso Antes (w1, w2, w3, w4)"].append(
+            np.round(peso_antes, 4).tolist())  # Guardamos los pesos antes del ajuste
+        data["Salida (S(k))"].append(np.round(salida, 4))  # Guardamos la salida calculada
+        data["Error (d - y)"].append(np.round(error, 4))  # Guardamos el error
+        data["Ajuste de Pesos (Δw1, Δw2, Δw3, Δw4)"].append(
+            np.round(delta_pesos, 4).tolist())  # Guardamos el ajuste de los pesos
+        data["Pesos Después (w1, w2, w3, w4)"].append(
+            np.round(pesos, 4).tolist())  # Guardamos los pesos después del ajuste
+
+        # Guardamos los errores para verificar si todos son suficientemente pequeños y detener el entrenamiento
+        errores.append(abs(error))
+
+    # Si el ajuste total de todos los pesos es menor que la tolerancia y los errores son lo suficientemente pequeños, detenemos
+    if ajuste_total < tolerancia and all(e < tolerancia for e in errores):
+        convergencia_alcanzada = True  # Convergencia alcanzada
+
+# Convertimos los datos almacenados a un DataFrame para facilitar la visualización en consola
+df = pd.DataFrame(data)
+
+
+# Función para imprimir la tabla en partes de 10 filas, con títulos claros para cada columna
+def print_table(df, batch_size=10):
+    for start in range(0, len(df), batch_size):  # Iteramos en bloques de 10 filas
+        end = start + batch_size  # Definimos el rango para cada bloque de impresión
+        batch_df = df[start:end]  # Extraemos el bloque de filas
+        # Imprimimos los encabezados y subtítulos
+        print("=" * 170)
+        print(
+            f"{'Patrón Binario':^30}{'S.D. (z(k))':^12}{'Pesos Iniciales':^40}{'Salida (S(k))':^15}{'Error (d - y)':^15}{'Ajuste de Pesos':^40}{'Pesos Finales':^40}")
+        print(
+            f"{'':^30}{'':^12}{'(w1, w2, w3, w4)':^40}{'':^15}{'':^15}{'(Δw1, Δw2, Δw3, Δw4)':^40}{'(w1, w2, w3, w4)':^40}")
+        print("=" * 170)
+        # Imprimimos cada fila de datos
+        for index, row in batch_df.iterrows():
             print(
-                f"{self.weights_list[i][0]:^10.4f} | {self.weights_list[i][1]:^10.4f} | {self.weights_list[i][2]:^10.4f}")
-
-        # Imprimimos la cabecera para mostrar las salidas calculadas y los errores.
-        print("\nSalida Calculada y Error")
-        print(f"{'Patrón Binario':^18} | {'Salida (X.W)':^15} | {'Error (e)':^10}")
-        print("-" * 60)
-
-        # Bucle para calcular y mostrar las salidas y los errores para cada patrón.
-        for i in range(len(X)):
-            # Calculamos la salida predicha con la función predict (usando las entradas y los pesos correspondientes).
-            output = self.predict(X[i], self.weights_list[i])
-            outputs.append(output)  # Guardamos la salida para el gráfico
-            # Calculamos el error como la diferencia entre la salida deseada y la salida predicha.
-            error = y[i] - output
-            # Mostramos el patrón binario, la salida predicha y el error calculado.
-            print(f"{str(X[i]):^18} | {output:^15.4f} | {error:^10.4f}")
-
-        # Imprimimos la cabecera para mostrar los ajustes de los pesos usando la Regla Delta.
-        print("\nAjuste de Pesos (Regla Delta)")
-        print(f"{'ΔW1':^10} | {'ΔW2':^10} | {'ΔW3':^10}")
-        print("-" * 30)
-
-        # Bucle para calcular y ajustar los pesos para cada patrón.
-        for i in range(len(X)):
-            # Calculamos nuevamente la salida predicha.
-            output = self.predict(X[i], self.weights_list[i])
-            # Calculamos el error como antes.
-            error = y[i] - output
-            # Calculamos el ajuste en los pesos usando la fórmula de la regla delta:
-            delta_w = self.learning_rate * error * X[i]
-            # Mostramos los ajustes de pesos para cada peso (W1, W2, W3).
-            print(f"{delta_w[0]:^10.4f} | {delta_w[1]:^10.4f} | {delta_w[2]:^10.4f}")
-            # Actualizamos los pesos sumando el ajuste calculado (Δw_j).
-            self.weights_list[i] += delta_w
-
-        # Imprimimos la cabecera para mostrar los pesos después del ajuste.
-        print("\nPesos Después del Ajuste")
-        print(f"{'W1':^10} | {'W2':^10} | {'W3':^10}")
-        print("-" * 30)
-
-        # Bucle para mostrar los pesos actualizados después del ajuste.
-        for i in range(len(X)):
-            print(
-                f"{self.weights_list[i][0]:^10.4f} | {self.weights_list[i][1]:^10.4f} | {self.weights_list[i][2]:^10.4f}")
-
-        # Después del entrenamiento, graficamos los resultados
-        self.plot_graph(X, outputs, y)
-
-    # Método para graficar
-    def plot_graph(self, X, outputs, y):
-        """
-        Crea un gráfico que muestra los puntos de las salidas deseadas y las salidas predichas,
-        junto con la línea que representa la fórmula de ajuste.
-        """
-        # Configuración de los puntos y la línea
-        plt.figure(figsize=(6, 5))
-
-        # Graficamos las salidas predichas como puntos azules
-        plt.scatter(outputs, y, color='blue', label='Salidas predichas')
-
-        # Dibujamos una línea que representa la fórmula de ajuste de la salida
-        line_x = np.linspace(-1.5, 2, 100)  # Valores para graficar la línea
-        line_y = line_x  # La línea es lineal para este caso
-        plt.plot(line_x, line_y, 'b--', linewidth=3, label=r'$\bar{y} = w_1 \cdot x_1 + w_2 \cdot x_2 + w_3 \cdot x_3$')
-
-        # Configuración adicional
-        plt.axhline(0, color='black', linewidth=1)
-        plt.axvline(0, color='black', linewidth=1)
-        plt.title('Gráfico de la fórmula y las salidas predichas')
-        plt.xlabel('Salidas predichas')
-        plt.ylabel('Salidas deseadas')
-        plt.legend()
-        plt.grid(True)
-        plt.show()
+                f"{str(row['Patrón Binario']):^30}{str(row['S.D. (z(k))']):^12}{str(row['Peso Antes (w1, w2, w3, w4)']):^40}{str(row['Salida (S(k))']):^15}{str(row['Error (d - y)']):^15}{str(row['Ajuste de Pesos (Δw1, Δw2, Δw3, Δw4)']):^40}{str(row['Pesos Después (w1, w2, w3, w4)']):^40}")
+        print("=" * 170)
 
 
-# Definimos los patrones binarios de entrada
-X = np.array([[0, 1, 0],  # Primer patrón binario
-              [0, 0, 1],  # Segundo patrón binario
-              [0, 1, 0],  # Tercer patrón binario
-              [0, 1, 1],  # Cuarto patrón binario
-              [1, 0, 0],  # Quinto patrón binario
-              [1, 0, 1],  # Sexto patrón binario
-              [1, 1, 0],  # Séptimo patrón binario
-              [1, 1, 1],  # Octavo patrón binario
-              [1, 0, 0],  # Noveno patrón binario
-              [1, 0, 1]])  # Décimo patrón binario
-
-# Calculamos las salidas decimales a partir de los patrones binarios
-y = binary_to_decimal(X)
-
-# Creamos una instancia del modelo ADELINE con 3 entradas (input_size=3) y una tasa de aprendizaje de 0.3.
-adeline_model = Adeline(input_size=3, learning_rate=0.3)
-
-# Entrenamos el modelo utilizando los patrones de entrada (X) y las salidas deseadas (y).
-adeline_model.train(X, y, epochs=1)  # Solo hacemos una iteración (epochs=1).
+# Imprimimos la tabla en bloques de 10 filas
+print_table(df, batch_size=10)
